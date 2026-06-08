@@ -4,9 +4,9 @@
   "version": "1.4.0",
   "identifier": "io.github.wenlei0603.time-state-recorder-desktop",
   "build": {
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "npm run desktop:dev-ui",
     "devUrl": "http://127.0.0.1:5173",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "npm run build && npm run desktop:prepare-sidecar",
     "frontendDist": "../dist"
   },
   "app": {
@@ -31,6 +31,7 @@
     "active": true,
     "targets": ["nsis"],
     "icon": ["icons/icon.ico"],
+    "externalBin": ["bin/tsr-collector"],
     "category": "Productivity",
     "shortDescription": "Local-first workday memory recorder.",
     "longDescription": "A local-first Windows desktop shell for Time State Recorder.",

@@ -35,12 +35,14 @@ Implemented in this repo:
   baseline.
 - Tauri v2 desktop shell configuration with a primary Windows desktop window
   and minimal capability boundary.
+- Desktop-managed collector sidecar wiring: the app prepares a Tauri sidecar
+  binary and starts `tsr-collector` on loopback when the default API port is not
+  already occupied.
 
 Not wired yet:
 
-- Collector sidecar lifecycle management from the desktop shell.
 - First-run setup and Settings UI.
-- Build and release automation.
+- Release signing, checksums, and GitHub release automation.
 
 ## Repository Layout
 
@@ -97,13 +99,16 @@ Prerequisites:
 
 ```powershell
 npm run desktop:info
+npm run desktop:prepare-sidecar
 npm run desktop:dev
 npm run desktop:build
 ```
 
 The current desktop shell reuses the imported Vite/React review UI. Collector
-startup, database location selection, provider credentials, and release signing
-are planned follow-up phases.
+startup is managed as a Tauri sidecar when `127.0.0.1:4317` is free; if another
+collector is already listening there, the desktop state reports it as an
+external collector instead of stopping it. Database location selection, provider
+credentials, and release signing are planned follow-up phases.
 
 `npm run desktop:build` creates the Windows installer under
 `target/x86_64-pc-windows-gnullvm/release/bundle/nsis/` for the current pinned
