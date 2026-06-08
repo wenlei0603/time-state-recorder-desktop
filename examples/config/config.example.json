@@ -1,0 +1,49 @@
+{
+  "storage": {
+    "dataDir": "%LOCALAPPDATA%\\TimeStateRecorder\\data",
+    "databasePath": "%LOCALAPPDATA%\\TimeStateRecorder\\data\\local.sqlite3",
+    "screenshotDir": "%LOCALAPPDATA%\\TimeStateRecorder\\data\\screenshots",
+    "highResScreenshotDir": "%LOCALAPPDATA%\\TimeStateRecorder\\data\\high-res-screenshots",
+    "retentionDays": 30
+  },
+  "capture": {
+    "windowTracking": true,
+    "inputCapture": false,
+    "screenshots": true,
+    "highResScreenshots": false,
+    "pollMs": 1000,
+    "screenshotIntervalSeconds": 60,
+    "idleThresholdSeconds": 120
+  },
+  "privacy": {
+    "defaultMode": "redacted",
+    "blockerConfigPath": "%LOCALAPPDATA%\\TimeStateRecorder\\blocker_config.json",
+    "showRawEvidenceWarnings": true
+  },
+  "ai": {
+    "mode": "local",
+    "provider": {
+      "type": "openai-compatible",
+      "preset": "custom",
+      "displayName": "Custom provider",
+      "baseUrl": "https://api.example.com/v1",
+      "model": "example-model",
+      "apiKeySecretName": "time-state-recorder:ai-provider",
+      "maxCompletionTokens": 200000,
+      "vision": true
+    },
+    "pipelines": {
+      "visualSummaries": false,
+      "visualWindowSummaries": false,
+      "fiveHourReports": false,
+      "dailyBrief": false
+    }
+  },
+  "system": {
+    "apiHost": "127.0.0.1",
+    "apiPort": 4317,
+    "launchOnStartup": false,
+    "startMinimized": false,
+    "updateChannel": "stable"
+  }
+}
