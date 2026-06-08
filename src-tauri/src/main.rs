@@ -8,9 +8,17 @@ use std::{
 use tauri::{AppHandle, Manager, RunEvent, State};
 use tauri_plugin_shell::{ShellExt, process::CommandChild};
 
+mod config;
+mod secrets;
+
+use config::{
+    ConfigPaths, DesktopConfig, DesktopConfigStore, DesktopConfigView, ProviderTestInput,
+    ProviderTestResult, SecretStatus,
+};
+use secrets::{DpapiSecretStore, SecretKey, SecretStore};
+
 const COLLECTOR_SIDECAR: &str = "tsr-collector";
 const DEFAULT_COLLECTOR_ADDR: &str = "127.0.0.1:4317";
-const DEFAULT_COLLECTOR_POLL_MS: u64 = 1000;
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,6 +57,47 @@ fn stop_collector(state: State<'_, CollectorState>) -> Result<CollectorDesktopSt
     state.stop()
 }
 
+#[tauri::command]
+fn get_desktop_config(app: AppHandle) -> Result<DesktopConfigView, String> {
+    load_config_view(&app)
+}
+
+#[tauri::command]
+fn save_desktop_config(app: AppHandle, config: DesktopConfig) -> Result<DesktopConfigView, String> {
+    let paths = config_paths_from_app(&app)?;
+    DesktopConfigStore::new(paths).save(&config)?;
+    load_config_view(&app)
+}
+
+#[tauri::command]
+fn set_ai_provider_api_key(app: AppHandle, secret: String) -> Result<SecretStatus, String> {
+    let paths = config_paths_from_app(&app)?;
+    let store = DpapiSecretStore::new(paths.secret_dir());
+    store.put(SecretKey::AiProviderApiKey, &secret)?;
+    store.status(SecretKey::AiProviderApiKey)
+}
+
+#[tauri::command]
+fn clear_ai_provider_api_key(app: AppHandle) -> Result<SecretStatus, String> {
+    let paths = config_paths_from_app(&app)?;
+    let store = DpapiSecretStore::new(paths.secret_dir());
+    store.delete(SecretKey::AiProviderApiKey)?;
+    store.status(SecretKey::AiProviderApiKey)
+}
+
+#[tauri::command]
+fn test_ai_provider_connection(app: AppHandle) -> Result<ProviderTestResult, String> {
+    let paths = config_paths_from_app(&app)?;
+    let config = DesktopConfigStore::new(paths.clone()).load_or_default()?;
+    let secret_status =
+        DpapiSecretStore::new(paths.secret_dir()).status(SecretKey::AiProviderApiKey)?;
+    ProviderTestInput {
+        config,
+        secret_status,
+    }
+    .build_result()
+}
+
 fn main() {
     let app = tauri::Builder::default()
         .manage(CollectorState::default())
@@ -65,7 +114,12 @@ fn main() {
             desktop_health,
             collector_status,
             start_collector,
-            stop_collector
+            stop_collector,
+            get_desktop_config,
+            save_desktop_config,
+            set_ai_provider_api_key,
+            clear_ai_provider_api_key,
+            test_ai_provider_connection
         ])
         .build(tauri::generate_context!())
         .expect("error while running Time State Recorder desktop");
@@ -99,15 +153,16 @@ impl CollectorLaunchConfig {
     }
 
     fn from_app(app: &AppHandle) -> Result<Self, String> {
-        let data_root = app
-            .path()
-            .app_local_data_dir()
-            .map_err(|error| format!("Unable to resolve app data directory: {error}"))?
-            .join("data");
-        let addr = DEFAULT_COLLECTOR_ADDR
+        let paths = config_paths_from_app(app)?;
+        let config = DesktopConfigStore::new(paths).load_or_default()?;
+        let addr = format!("127.0.0.1:{}", config.system.api_port)
             .parse()
             .map_err(|error| format!("Invalid collector address: {error}"))?;
-        Ok(Self::new(data_root, addr, DEFAULT_COLLECTOR_POLL_MS))
+        Ok(Self::new(
+            config.storage.data_dir.clone(),
+            addr,
+            config.capture.poll_ms,
+        ))
     }
 
     fn args(&self) -> Vec<String> {
@@ -293,6 +348,31 @@ fn loopback_is_listening(addr: &SocketAddr) -> bool {
 
 fn path_arg(path: &std::path::Path) -> String {
     path.to_string_lossy().replace('\\', "/")
+}
+
+fn config_paths_from_app(app: &AppHandle) -> Result<ConfigPaths, String> {
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|error| format!("Unable to resolve app config directory: {error}"))?;
+    let app_local_data_dir = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|error| format!("Unable to resolve app local data directory: {error}"))?;
+    Ok(ConfigPaths::new(config_dir, app_local_data_dir))
+}
+
+fn load_config_view(app: &AppHandle) -> Result<DesktopConfigView, String> {
+    let paths = config_paths_from_app(app)?;
+    let store = DesktopConfigStore::new(paths.clone());
+    let config = store.load_or_default()?;
+    let secret_status =
+        DpapiSecretStore::new(paths.secret_dir()).status(SecretKey::AiProviderApiKey)?;
+    Ok(DesktopConfigView {
+        config_path: store.paths().config_file(),
+        config,
+        ai_secret_status: secret_status,
+    })
 }
 
 #[cfg(test)]

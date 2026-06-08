@@ -1,49 +1,42 @@
 {
+  "schemaVersion": 1,
   "storage": {
-    "dataDir": "%LOCALAPPDATA%\\TimeStateRecorder\\data",
-    "databasePath": "%LOCALAPPDATA%\\TimeStateRecorder\\data\\local.sqlite3",
-    "screenshotDir": "%LOCALAPPDATA%\\TimeStateRecorder\\data\\screenshots",
-    "highResScreenshotDir": "%LOCALAPPDATA%\\TimeStateRecorder\\data\\high-res-screenshots",
+    "dataDir": "%LOCALAPPDATA%\\io.github.wenlei0603.time-state-recorder-desktop\\data",
+    "databasePath": "%LOCALAPPDATA%\\io.github.wenlei0603.time-state-recorder-desktop\\data\\local.sqlite3",
+    "screenshotDir": "%LOCALAPPDATA%\\io.github.wenlei0603.time-state-recorder-desktop\\data\\screenshots",
+    "highResScreenshotDir": "%LOCALAPPDATA%\\io.github.wenlei0603.time-state-recorder-desktop\\data\\high-res-screenshots",
     "retentionDays": 30
   },
   "capture": {
-    "windowTracking": true,
-    "inputCapture": false,
-    "screenshots": true,
-    "highResScreenshots": false,
     "pollMs": 1000,
-    "screenshotIntervalSeconds": 60,
-    "idleThresholdSeconds": 120
+    "screenshotIntervalSecs": 60,
+    "highResCaptureEnabled": true,
+    "inputCaptureEnabled": true,
+    "idleThresholdSecs": 120
   },
   "privacy": {
-    "defaultMode": "redacted",
-    "blockerConfigPath": "%LOCALAPPDATA%\\TimeStateRecorder\\blocker_config.json",
-    "showRawEvidenceWarnings": true
+    "defaultPrivacyMode": "redacted",
+    "blockerConfigPath": "%LOCALAPPDATA%\\io.github.wenlei0603.time-state-recorder-desktop\\data\\blocker_config.json",
+    "externalAiWarningAccepted": false
   },
   "ai": {
-    "mode": "local",
-    "provider": {
-      "type": "openai-compatible",
-      "preset": "custom",
-      "displayName": "Custom provider",
-      "baseUrl": "https://api.example.com/v1",
-      "model": "example-model",
-      "apiKeySecretName": "time-state-recorder:ai-provider",
-      "maxCompletionTokens": 200000,
-      "vision": true
-    },
+    "enabled": false,
+    "providerPreset": "customOpenAiCompatible",
+    "displayName": "Custom OpenAI-compatible provider",
+    "baseUrl": "",
+    "model": "gpt-4o-mini",
+    "maxCompletionTokens": 200000,
+    "visionEnabled": true,
     "pipelines": {
-      "visualSummaries": false,
-      "visualWindowSummaries": false,
-      "fiveHourReports": false,
+      "visualAnalysis": false,
+      "insightReports": false,
       "dailyBrief": false
     }
   },
   "system": {
-    "apiHost": "127.0.0.1",
     "apiPort": 4317,
     "launchOnStartup": false,
     "startMinimized": false,
-    "updateChannel": "stable"
+    "trayEnabled": true
   }
 }

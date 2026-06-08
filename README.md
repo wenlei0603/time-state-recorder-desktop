@@ -22,7 +22,7 @@ imported from the current Time State Recorder product line.
 
 ## Current Status
 
-Status: Phase 3 desktop foundation baseline.
+Status: Phase 4 config and secret-store foundation.
 
 Implemented in this repo:
 
@@ -38,6 +38,10 @@ Implemented in this repo:
 - Desktop-managed collector sidecar wiring: the app prepares a Tauri sidecar
   binary and starts `tsr-collector` on loopback when the default API port is not
   already occupied.
+- Typed desktop configuration for storage, capture, privacy, AI provider, and
+  system settings.
+- DPAPI-backed Windows secret storage for the AI provider key; the key is not
+  serialized into `config.json`.
 
 Not wired yet:
 
@@ -107,9 +111,22 @@ npm run desktop:build
 The current desktop shell reuses the imported Vite/React review UI. Collector
 startup is managed as a Tauri sidecar when `127.0.0.1:4317` is free; if another
 collector is already listening there, the desktop state reports it as an
-external collector instead of stopping it. Database location selection, provider
-credentials, and release signing are planned follow-up phases.
+external collector instead of stopping it. Database location selection and AI
+provider credentials now have backend APIs; first-run and Settings UI are the
+next product layer.
 
 `npm run desktop:build` creates the Windows installer under
 `target/x86_64-pc-windows-gnullvm/release/bundle/nsis/` for the current pinned
 toolchain.
+
+## Configuration
+
+Non-secret settings live in the app config directory as `config.json`. The
+schema covers storage paths, capture intervals, privacy defaults,
+OpenAI-compatible AI provider metadata, and desktop system behavior. See
+[examples/config/config.example.json](examples/config/config.example.json).
+
+AI provider keys are stored separately through a Windows DPAPI-backed secret
+store under the app config directory. Settings code should use the Tauri
+commands `set_ai_provider_api_key` and `clear_ai_provider_api_key`; never write
+keys into `config.json`, logs, screenshots, tests, or examples.

@@ -4887,9 +4887,11 @@ name = "time-state-recorder-desktop"
 version = "1.4.0"
 dependencies = [
  "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-shell",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
