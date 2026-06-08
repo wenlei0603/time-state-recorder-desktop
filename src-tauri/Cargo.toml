@@ -1,0 +1,16 @@
+[package]
+name = "time-state-recorder-desktop"
+version = "1.4.0"
+description = "Local-first Windows desktop shell for Time State Recorder"
+authors = ["wenlei0603"]
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/wenlei0603/time-state-recorder-desktop"
+build = "build.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2", features = [] }

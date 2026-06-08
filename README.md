@@ -22,7 +22,7 @@ imported from the current Time State Recorder product line.
 
 ## Current Status
 
-Status: Phase 2 sanitized source import.
+Status: Phase 3 desktop foundation baseline.
 
 Implemented in this repo:
 
@@ -33,10 +33,13 @@ Implemented in this repo:
 - Sanitized import of the current Rust collector, React review UI, local API
   docs, runbooks, and launcher scripts from the Time State Recorder product
   baseline.
+- Tauri v2 desktop shell configuration with a primary Windows desktop window
+  and minimal capability boundary.
 
-Not imported yet:
+Not wired yet:
 
-- Tauri desktop shell.
+- Collector sidecar lifecycle management from the desktop shell.
+- First-run setup and Settings UI.
 - Build and release automation.
 
 ## Repository Layout
@@ -48,6 +51,7 @@ examples/config/    Safe example config files with no secrets
 scripts/            Future build, verification, and packaging helpers
 collector/          Imported Rust collector and local API
 src/                Imported React review UI
+src-tauri/          Tauri v2 Windows desktop shell
 ```
 
 The first source import intentionally keeps the existing source layout so the
@@ -78,3 +82,29 @@ agent worktree directories.
 3. Replace env-file provider configuration with typed config and secret storage.
 4. Build first-run setup and Settings UI.
 5. Package a Windows release artifact.
+
+## Desktop Development
+
+Prerequisites:
+
+- Node.js and npm.
+- Rust/Cargo available on `PATH`.
+- WebView2 runtime on Windows.
+- Tauri-compatible Windows build tooling. This repo has been verified with the
+  pinned `stable-x86_64-pc-windows-gnullvm` toolchain in `rust-toolchain.toml`;
+  the standard Tauri recommendation is Rust via rustup plus Visual Studio Build
+  Tools/MSVC.
+
+```powershell
+npm run desktop:info
+npm run desktop:dev
+npm run desktop:build
+```
+
+The current desktop shell reuses the imported Vite/React review UI. Collector
+startup, database location selection, provider credentials, and release signing
+are planned follow-up phases.
+
+`npm run desktop:build` creates the Windows installer under
+`target/x86_64-pc-windows-gnullvm/release/bundle/nsis/` for the current pinned
+toolchain.

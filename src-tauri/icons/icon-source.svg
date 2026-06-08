@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Time State Recorder icon">
+  <rect width="256" height="256" rx="48" fill="#101820"/>
+  <circle cx="128" cy="128" r="78" fill="#2EC4B6"/>
+  <circle cx="128" cy="128" r="58" fill="#101820"/>
+  <path d="M128 70v60l38 26" fill="none" stroke="#F4D35E" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M78 194h100" fill="none" stroke="#F4D35E" stroke-width="16" stroke-linecap="round"/>
+</svg>

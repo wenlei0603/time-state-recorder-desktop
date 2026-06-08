@@ -4,21 +4,26 @@
   "private": false,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "tsc -b && vite build",
     "test": "vitest run --maxWorkers=2 --testTimeout=60000",
     "test:watch": "vitest",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
+    "desktop:info": "tauri info",
     "smoke:notion-daily-archive": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-notion-daily-archive.ps1",
     "serve:app": "node scripts/web-server.mjs --host 127.0.0.1 --port 5173 --api http://127.0.0.1:4317",
     "collector": "cargo run -p tsr-collector -- serve --db data/local.sqlite3 --addr 127.0.0.1:4317",
     "collector:release": "cargo run -p tsr-collector --release -- serve --db data/local.sqlite3 --addr 127.0.0.1:4317"
   },
   "dependencies": {
+    "@tauri-apps/api": "2.11.0",
+    "lucide-react": "^0.561.0",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "lucide-react": "^0.561.0"
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "2.11.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^25.0.0",

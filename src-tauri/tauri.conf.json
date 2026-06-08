@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Time State Recorder Desktop",
+  "version": "1.4.0",
+  "identifier": "io.github.wenlei0603.time-state-recorder-desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Time State Recorder",
+        "width": 1280,
+        "height": 860,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "capabilities": ["main"],
+      "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:4317 http://127.0.0.1:5173 ws://127.0.0.1:5173; img-src 'self' asset: http://asset.localhost http://127.0.0.1:4317 data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.ico"],
+    "category": "Productivity",
+    "shortDescription": "Local-first workday memory recorder.",
+    "longDescription": "A local-first Windows desktop shell for Time State Recorder.",
+    "license": "MIT",
+    "publisher": "wenlei0603",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      }
+    }
+  }
+}
