@@ -22,7 +22,7 @@ imported from the current Time State Recorder product line.
 
 ## Current Status
 
-Status: Phase 1 repo boundary.
+Status: Phase 2 sanitized source import.
 
 Implemented in this repo:
 
@@ -30,11 +30,12 @@ Implemented in this repo:
 - Product PRD and goal contract.
 - Safe example configuration.
 - Security and contribution notes.
+- Sanitized import of the current Rust collector, React review UI, local API
+  docs, runbooks, and launcher scripts from the Time State Recorder product
+  baseline.
 
 Not imported yet:
 
-- Rust collector.
-- React review UI.
 - Tauri desktop shell.
 - Build and release automation.
 
@@ -45,9 +46,12 @@ docs/product/       Product requirements and execution contract
 docs/security/      Security and privacy notes
 examples/config/    Safe example config files with no secrets
 scripts/            Future build, verification, and packaging helpers
+collector/          Imported Rust collector and local API
+src/                Imported React review UI
 ```
 
-Planned source layout:
+The first source import intentionally keeps the existing source layout so the
+baseline remains testable before desktop restructuring. Planned desktop layout:
 
 ```text
 apps/desktop/       Tauri shell and React UI

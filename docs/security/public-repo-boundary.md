@@ -23,7 +23,7 @@ or pull request, verify that no private runtime material is tracked.
 ```powershell
 git status --short
 git ls-files
-git ls-files | Select-String -Pattern '(^|/)(data|logs|\\.launcher|\\.worktrees|\\.claude|\\.playwright-mcp|\\.superpowers)(/|$)|\\.env\\.local$|\\.sqlite3$|\\.db$|\\.db-wal$|\\.db-shm$'
+git ls-files | Select-String -Pattern '^(data|logs|output|reports|screenshots|high-res-screenshots|\\.launcher|\\.worktrees|worktrees)/|(^|/)(\\.claude|\\.playwright-mcp|\\.superpowers)(/|$)|\\.env\\.local$|\\.sqlite3$|\\.db$|\\.db-wal$|\\.db-shm$'
 git grep -n -I -E 'api[_-]?key|bearer |sk-[A-Za-z0-9]|MINIMAX_API_KEY|OPENAI_API_KEY|secret' -- .
 ```
 

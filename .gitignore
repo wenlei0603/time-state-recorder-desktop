@@ -1,24 +1,24 @@
 # Dependencies and build output
-node_modules/
-target/
-dist/
-build/
-out/
+/node_modules/
+/target/
+/dist/
+/build/
+/out/
 *.tsbuildinfo
 
 # Runtime state
-data/
-logs/
-output/
-reports/
-.launcher/
+/data/
+/logs/
+/output/
+/reports/
+/.launcher/
 *.sqlite
 *.sqlite3
 *.db
 *.db-shm
 *.db-wal
-screenshots/
-high-res-screenshots/
+/screenshots/
+/high-res-screenshots/
 
 # Secrets and local config
 .env
@@ -28,15 +28,15 @@ high-res-screenshots/
 *.pem
 *.p12
 *.pfx
-secrets.json
-config.local.json
+/secrets.json
+/config.local.json
 
 # Local agent/tooling state
-.claude/
-.playwright-mcp/
-.superpowers/
-.worktrees/
-worktrees/
+/.claude/
+/.playwright-mcp/
+/.superpowers/
+/.worktrees/
+/worktrees/
 
 # OS/editor noise
 .DS_Store
