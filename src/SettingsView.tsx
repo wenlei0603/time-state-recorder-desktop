@@ -1,5 +1,6 @@
 import {
   Check,
+  FolderOpen,
   KeyRound,
   Save,
   ServerCog,
@@ -65,6 +66,7 @@ export function SettingsView({
 
   const externalAiEnabled = draft?.ai.enabled ?? false;
   const configPath = useMemo(() => view?.configPath ?? "Unavailable", [view]);
+  const isFirstRun = view?.firstRun ?? false;
 
   if (loading) {
     return (
@@ -166,12 +168,28 @@ export function SettingsView({
     }
   }
 
+  async function chooseDataDirectory() {
+    setSaving(true);
+    setStatus(null);
+    setError(null);
+    try {
+      const selected = await client.chooseDataDirectory();
+      if (selected) {
+        applyDataDirectory(selected);
+      }
+    } catch (directoryError) {
+      setError(errorMessage(directoryError));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <section className="settingsView workspace" aria-label="Settings">
       <div className="settingsHeader">
         <div>
           <p className="eyebrow">Desktop configuration</p>
-          <h2>Settings</h2>
+          <h2>{isFirstRun ? "First-run setup" : "Settings"}</h2>
           <p className="settingsPath">{configPath}</p>
         </div>
         <button
@@ -181,7 +199,7 @@ export function SettingsView({
           onClick={() => void saveSettings()}
         >
           <Save aria-hidden="true" size={18} />
-          <span>Save Settings</span>
+          <span>{isFirstRun ? "Complete Setup" : "Save Settings"}</span>
         </button>
       </div>
 
@@ -208,6 +226,15 @@ export function SettingsView({
             value={draft.storage.dataDir}
             onChange={(value) => updateStorage({ dataDir: value })}
           />
+          <button
+            type="button"
+            className="iconButton secondaryAction"
+            disabled={saving}
+            onClick={() => void chooseDataDirectory()}
+          >
+            <FolderOpen aria-hidden="true" size={16} />
+            <span>Choose Data Directory</span>
+          </button>
           <Field
             label="Database Path"
             value={draft.storage.databasePath}
@@ -280,7 +307,7 @@ export function SettingsView({
             checked={draft.ai.enabled}
             onChange={(checked) => updateAi({ enabled: checked })}
           />
-          {externalAiEnabled && (
+          {(externalAiEnabled || isFirstRun) && (
             <div className="retentionNotice externalAiNotice">
               <ShieldCheck aria-hidden="true" size={16} />
               <p>External AI can send text summaries to the configured provider.</p>
@@ -414,6 +441,37 @@ export function SettingsView({
       current ? { ...current, system: { ...current.system, ...update } } : current
     );
   }
+
+  function applyDataDirectory(dataDir: string) {
+    const root = trimTrailingSeparators(dataDir);
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            storage: {
+              ...current.storage,
+              dataDir: root,
+              databasePath: joinPath(root, "local.sqlite3"),
+              screenshotDir: joinPath(root, "screenshots"),
+              highResScreenshotDir: joinPath(root, "high-res-screenshots")
+            },
+            privacy: {
+              ...current.privacy,
+              blockerConfigPath: joinPath(root, "blocker_config.json")
+            }
+          }
+        : current
+    );
+  }
+}
+
+function joinPath(root: string, child: string): string {
+  const separator = root.includes("\\") && !root.includes("/") ? "\\" : "/";
+  return `${root}${separator}${child}`;
+}
+
+function trimTrailingSeparators(path: string): string {
+  return path.replace(/[\\/]+$/, "");
 }
 
 function Field({

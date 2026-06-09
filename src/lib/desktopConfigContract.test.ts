@@ -17,6 +17,7 @@ describe("desktop config and secret-store contract", () => {
     expect(mainRs).toContain("save_desktop_config");
     expect(mainRs).toContain("set_ai_provider_api_key");
     expect(mainRs).toContain("clear_ai_provider_api_key");
+    expect(mainRs).toContain("choose_data_directory");
     expect(mainRs).toContain("test_ai_provider_connection");
     expect(mainRs).toContain("tauri::generate_handler![");
   });
@@ -26,6 +27,8 @@ describe("desktop config and secret-store contract", () => {
     const secretsRs = readRepoText("src-tauri/src/secrets.rs");
 
     expect(configRs).toContain("struct DesktopConfig");
+    expect(configRs).toContain("first_run");
+    expect(configRs).toContain("apply_data_dir");
     expect(configRs).toContain("struct StorageConfig");
     expect(configRs).toContain("struct CaptureConfig");
     expect(configRs).toContain("struct PrivacyConfig");

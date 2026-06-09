@@ -6,6 +6,7 @@ use std::{
 };
 
 use tauri::{AppHandle, Manager, RunEvent, State};
+use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_shell::{ShellExt, process::CommandChild};
 
 mod config;
@@ -70,6 +71,19 @@ fn save_desktop_config(app: AppHandle, config: DesktopConfig) -> Result<DesktopC
 }
 
 #[tauri::command]
+fn choose_data_directory(app: AppHandle) -> Result<Option<String>, String> {
+    app.dialog()
+        .file()
+        .blocking_pick_folder()
+        .map(|path| {
+            path.into_path()
+                .map(|path| path_arg(&path))
+                .map_err(|error| format!("Unable to resolve selected folder: {error}"))
+        })
+        .transpose()
+}
+
+#[tauri::command]
 fn set_ai_provider_api_key(app: AppHandle, secret: String) -> Result<SecretStatus, String> {
     let paths = config_paths_from_app(&app)?;
     let store = DpapiSecretStore::new(paths.secret_dir());
@@ -101,6 +115,7 @@ fn test_ai_provider_connection(app: AppHandle) -> Result<ProviderTestResult, Str
 fn main() {
     let app = tauri::Builder::default()
         .manage(CollectorState::default())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             let handle = app.handle().clone();
@@ -119,6 +134,7 @@ fn main() {
             save_desktop_config,
             set_ai_provider_api_key,
             clear_ai_provider_api_key,
+            choose_data_directory,
             test_ai_provider_connection
         ])
         .build(tauri::generate_context!())
@@ -365,11 +381,13 @@ fn config_paths_from_app(app: &AppHandle) -> Result<ConfigPaths, String> {
 fn load_config_view(app: &AppHandle) -> Result<DesktopConfigView, String> {
     let paths = config_paths_from_app(app)?;
     let store = DesktopConfigStore::new(paths.clone());
+    let first_run = store.is_first_run();
     let config = store.load_or_default()?;
     let secret_status =
         DpapiSecretStore::new(paths.secret_dir()).status(SecretKey::AiProviderApiKey)?;
     Ok(DesktopConfigView {
         config_path: store.paths().config_file(),
+        first_run,
         config,
         ai_secret_status: secret_status,
     })

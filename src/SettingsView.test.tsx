@@ -5,6 +5,7 @@ import type { DesktopConfigClient, DesktopConfigView } from "./lib/desktopConfig
 
 const baseView: DesktopConfigView = {
   configPath: "C:/Users/example/AppData/Roaming/tsr/config.json",
+  firstRun: false,
   aiSecretStatus: {
     present: true,
     masked: "••••CRET"
@@ -70,6 +71,7 @@ function createClient(view = baseView): DesktopConfigClient {
       present: false,
       masked: undefined
     })),
+    chooseDataDirectory: vi.fn(async () => "D:/TimeRecorderData"),
     testProvider: vi.fn(async () => ({
       status: "ready",
       requestKind: "openai_compatible_text_chat_completions",
@@ -97,6 +99,32 @@ describe("SettingsView", () => {
       "customOpenAiCompatible"
     );
     expect(screen.getByText("••••CRET")).toBeInTheDocument();
+  });
+
+  it("renders first-run setup and completes with local-only defaults", async () => {
+    const client = createClient({ ...baseView, firstRun: true });
+    render(<SettingsView client={client} />);
+
+    expect(await screen.findByRole("heading", { name: /first-run setup/i })).toBeInTheDocument();
+    expect(screen.getByText(/Local Only/i)).toBeInTheDocument();
+    expect(screen.getByText(/External AI can send text summaries/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /complete setup/i }));
+    await waitFor(() => expect(client.saveConfig).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(client.saveConfig).mock.calls[0][0].ai.enabled).toBe(false);
+  });
+
+  it("lets the user choose a data directory from the desktop picker", async () => {
+    const client = createClient();
+    render(<SettingsView client={client} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /choose data directory/i }));
+
+    expect(await screen.findByLabelText(/data directory/i)).toHaveValue("D:/TimeRecorderData");
+    expect(screen.getByLabelText(/database path/i)).toHaveValue(
+      "D:/TimeRecorderData/local.sqlite3"
+    );
+    expect(client.chooseDataDirectory).toHaveBeenCalledTimes(1);
   });
 
   it("saves provider settings without sending the API key through config save", async () => {

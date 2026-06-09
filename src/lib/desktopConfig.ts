@@ -65,6 +65,7 @@ export type SecretStatus = {
 
 export type DesktopConfigView = {
   configPath: string;
+  firstRun: boolean;
   config: DesktopConfig;
   aiSecretStatus: SecretStatus;
 };
@@ -84,6 +85,7 @@ export type DesktopConfigClient = {
   saveConfig: (config: DesktopConfig) => Promise<DesktopConfigView>;
   setApiKey: (secret: string) => Promise<SecretStatus>;
   clearApiKey: () => Promise<SecretStatus>;
+  chooseDataDirectory: () => Promise<string | null | undefined>;
   testProvider: () => Promise<ProviderTestResult>;
 };
 
@@ -107,5 +109,7 @@ export const tauriDesktopConfigClient: DesktopConfigClient = {
   setApiKey: (secret) =>
     invokeDesktop<SecretStatus>("set_ai_provider_api_key", { secret }),
   clearApiKey: () => invokeDesktop<SecretStatus>("clear_ai_provider_api_key"),
+  chooseDataDirectory: () =>
+    invokeDesktop<string | null>("choose_data_directory"),
   testProvider: () => invokeDesktop<ProviderTestResult>("test_ai_provider_connection")
 };

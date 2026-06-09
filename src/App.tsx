@@ -32,6 +32,10 @@ import { fetchCollectorHealth } from "./lib/health";
 import { fetchInputSummary, fetchTextSegments } from "./lib/input";
 import { fetchAnalysisStatus, fetchInsightReports } from "./lib/insights";
 import {
+  tauriDesktopConfigClient,
+  type DesktopConfigClient
+} from "./lib/desktopConfig";
+import {
   analyzeScreenshot,
   fetchScreenshots,
   fetchScreenshotSummary,
@@ -71,7 +75,13 @@ type RefreshContext = {
   date: string;
 };
 
-export function App() {
+type AppProps = {
+  desktopConfigClient?: DesktopConfigClient;
+};
+
+export function App({
+  desktopConfigClient = tauriDesktopConfigClient
+}: AppProps = {}) {
   const [events, setEvents] = useState<TimeEvent[]>(feature1SampleEvents);
   const [activityBuckets, setActivityBuckets] =
     useState<ActivityBucket[]>(activitySampleBuckets);
@@ -136,6 +146,23 @@ export function App() {
   useEffect(() => {
     void refreshCollector();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    desktopConfigClient
+      .getConfig()
+      .then((view) => {
+        if (active && view.firstRun) {
+          setViewMode("settings");
+        }
+      })
+      .catch(() => {
+        // Browser preview does not have the Tauri desktop runtime.
+      });
+    return () => {
+      active = false;
+    };
+  }, [desktopConfigClient]);
 
   useEffect(() => {
     if (sourceMode !== "live") {
@@ -635,7 +662,7 @@ export function App() {
       )}
 
       {viewMode === "settings" ? (
-        <SettingsView />
+        <SettingsView client={desktopConfigClient} />
       ) : viewMode === "today" ? (
         <>
           <InsightFeedback

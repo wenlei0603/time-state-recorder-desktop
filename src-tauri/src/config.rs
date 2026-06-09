@@ -55,13 +55,13 @@ pub struct DesktopConfig {
 impl DesktopConfig {
     pub fn default_for_paths(paths: &ConfigPaths) -> Self {
         let data_dir = paths.default_data_dir();
-        Self {
+        let mut config = Self {
             schema_version: 1,
             storage: StorageConfig {
-                data_dir: data_dir.clone(),
-                database_path: data_dir.join("local.sqlite3"),
-                screenshot_dir: data_dir.join("screenshots"),
-                high_res_screenshot_dir: data_dir.join("high-res-screenshots"),
+                data_dir: PathBuf::new(),
+                database_path: PathBuf::new(),
+                screenshot_dir: PathBuf::new(),
+                high_res_screenshot_dir: PathBuf::new(),
                 retention_days: DEFAULT_RETENTION_DAYS,
             },
             capture: CaptureConfig {
@@ -73,7 +73,7 @@ impl DesktopConfig {
             },
             privacy: PrivacyConfig {
                 default_privacy_mode: PrivacyMode::Redacted,
-                blocker_config_path: data_dir.join("blocker_config.json"),
+                blocker_config_path: PathBuf::new(),
                 external_ai_warning_accepted: false,
             },
             ai: AiProviderConfig {
@@ -96,7 +96,17 @@ impl DesktopConfig {
                 start_minimized: false,
                 tray_enabled: true,
             },
-        }
+        };
+        config.apply_data_dir(data_dir);
+        config
+    }
+
+    pub fn apply_data_dir(&mut self, data_dir: PathBuf) {
+        self.storage.data_dir = data_dir.clone();
+        self.storage.database_path = data_dir.join("local.sqlite3");
+        self.storage.screenshot_dir = data_dir.join("screenshots");
+        self.storage.high_res_screenshot_dir = data_dir.join("high-res-screenshots");
+        self.privacy.blocker_config_path = data_dir.join("blocker_config.json");
     }
 }
 
@@ -177,6 +187,7 @@ pub struct SystemConfig {
 #[serde(rename_all = "camelCase")]
 pub struct DesktopConfigView {
     pub config_path: PathBuf,
+    pub first_run: bool,
     pub config: DesktopConfig,
     pub ai_secret_status: SecretStatus,
 }
@@ -200,6 +211,10 @@ impl DesktopConfigStore {
 
     pub fn paths(&self) -> &ConfigPaths {
         &self.paths
+    }
+
+    pub fn is_first_run(&self) -> bool {
+        !self.paths.config_file().exists()
     }
 
     pub fn load_or_default(&self) -> Result<DesktopConfig, String> {
@@ -389,6 +404,7 @@ mod tests {
     fn config_store_round_trips_without_api_key_material() {
         let paths = ConfigPaths::new(temp_root("config"), temp_root("data"));
         let store = DesktopConfigStore::new(paths.clone());
+        assert!(store.is_first_run());
         let mut config = store.load_or_default().unwrap();
 
         config.ai.enabled = true;
@@ -399,12 +415,40 @@ mod tests {
 
         let loaded = store.load_or_default().unwrap();
         assert_eq!(loaded, config);
+        assert!(!store.is_first_run());
 
         let raw = fs::read_to_string(paths.config_file()).unwrap();
         assert!(raw.contains("MiniMax-M3"));
         assert!(!raw.contains("sk-live-secret"));
         assert!(!raw.to_lowercase().contains("api_key"));
         assert!(!raw.to_lowercase().contains("apikey"));
+    }
+
+    #[test]
+    fn data_directory_selection_updates_related_storage_paths() {
+        let paths = ConfigPaths::new(temp_root("config"), temp_root("data"));
+        let mut config = DesktopConfig::default_for_paths(&paths);
+        let selected = PathBuf::from("D:/TimeRecorderData");
+
+        config.apply_data_dir(selected.clone());
+
+        assert_eq!(config.storage.data_dir, selected);
+        assert_eq!(
+            config.storage.database_path,
+            PathBuf::from("D:/TimeRecorderData/local.sqlite3")
+        );
+        assert_eq!(
+            config.storage.screenshot_dir,
+            PathBuf::from("D:/TimeRecorderData/screenshots")
+        );
+        assert_eq!(
+            config.storage.high_res_screenshot_dir,
+            PathBuf::from("D:/TimeRecorderData/high-res-screenshots")
+        );
+        assert_eq!(
+            config.privacy.blocker_config_path,
+            PathBuf::from("D:/TimeRecorderData/blocker_config.json")
+        );
     }
 
     #[test]

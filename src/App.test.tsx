@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
+import * as desktopConfig from "./lib/desktopConfig";
 
 function healthResponse() {
   return {
@@ -933,6 +934,60 @@ describe("App", () => {
 
     expect(screen.getByText(/Screenshots layer is hidden/i)).toBeInTheDocument();
     expect(screen.queryByAltText(/Screenshot at/i)).not.toBeInTheDocument();
+  });
+
+  it("opens Settings automatically when desktop config reports first run", async () => {
+    vi.spyOn(desktopConfig.tauriDesktopConfigClient, "getConfig").mockResolvedValue({
+      configPath: "C:/Users/example/AppData/Roaming/tsr/config.json",
+      firstRun: true,
+      aiSecretStatus: { present: false },
+      config: {
+        schemaVersion: 1,
+        storage: {
+          dataDir: "D:/TSR",
+          databasePath: "D:/TSR/local.sqlite3",
+          screenshotDir: "D:/TSR/screenshots",
+          highResScreenshotDir: "D:/TSR/high-res-screenshots",
+          retentionDays: 30
+        },
+        capture: {
+          pollMs: 1000,
+          screenshotIntervalSecs: 60,
+          highResCaptureEnabled: true,
+          inputCaptureEnabled: true,
+          idleThresholdSecs: 120
+        },
+        privacy: {
+          defaultPrivacyMode: "redacted",
+          blockerConfigPath: "D:/TSR/blocker_config.json",
+          externalAiWarningAccepted: false
+        },
+        ai: {
+          enabled: false,
+          providerPreset: "customOpenAiCompatible",
+          displayName: "Custom OpenAI-compatible provider",
+          baseUrl: "",
+          model: "gpt-4o-mini",
+          maxCompletionTokens: 200000,
+          visionEnabled: true,
+          pipelines: {
+            visualAnalysis: false,
+            insightReports: false,
+            dailyBrief: false
+          }
+        },
+        system: {
+          apiPort: 4317,
+          launchOnStartup: false,
+          startMinimized: false,
+          trayEnabled: true
+        }
+      }
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: /first-run setup/i })).toBeInTheDocument();
   });
 });
 
