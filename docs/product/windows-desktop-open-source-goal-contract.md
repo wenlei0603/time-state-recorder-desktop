@@ -276,13 +276,23 @@ Required checks before claiming the full goal is complete:
 - Windows release artifact exists.
 - Verification commands and manual smoke checks have current output evidence.
 
-## 6. Current Next Action
+## 6. Current Execution Status
 
-The next action after this contract is reviewed:
+Current repo:
 
-1. Confirm or rename the target repo `time-state-recorder-desktop`.
-2. Approve the PRD direction.
-3. Start Phase 1 in a new local repo path.
+- Local path: `D:\CodexInfra\docs\projects\time-state-recorder-desktop`
+- GitHub repo: `https://github.com/wenlei0603/time-state-recorder-desktop`
 
-If the user says to proceed without changes, execute Phase 1 first and do not
-start implementation phases until the new repo boundary is clean.
+Completed evidence checkpoints:
+
+- Phase 1 repo boundary is established.
+- Phase 2 sanitized source import is in the new repo.
+- Phase 3 Tauri desktop foundation and sidecar supervision are implemented.
+- Phase 4 typed config and DPAPI-backed secret storage are implemented.
+- Phase 5 first-run Settings UI, data-directory picker, local-only mode, and
+  OpenAI-compatible provider settings are implemented.
+
+Current next action:
+
+- Continue Phase 6 desktop controls, then complete Phase 7 public packaging and
+  Phase 8 GitHub release publication.

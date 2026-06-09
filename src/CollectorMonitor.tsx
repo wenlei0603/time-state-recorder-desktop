@@ -1,6 +1,20 @@
-import { Activity, AlertTriangle, Clock, Database, Monitor, Server } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  CirclePause,
+  Clock,
+  Database,
+  Monitor,
+  Play,
+  Server
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchCollectorHealth } from "./lib/health";
+import {
+  tauriDesktopRuntimeClient,
+  type CollectorDesktopStatus,
+  type DesktopRuntimeClient
+} from "./lib/desktopRuntime";
 import type { CollectorHealth, SubsystemHealth } from "./types";
 
 type MonitorStatus = "offline" | "connecting" | "connected";
@@ -31,6 +45,14 @@ function formatBytes(bytes: number): string {
   return `${bytes} B`;
 }
 
+function desktopStatusLabel(status: CollectorDesktopStatus): string {
+  if (status.status === "external") return "External collector";
+  if (status.status === "stopped") return "Capture paused";
+  if (status.managed && status.status === "running") return "Desktop-managed capture";
+  if (status.status === "error") return "Desktop control error";
+  return status.status.replace(/_/g, " ");
+}
+
 function SubsystemRow({ name, health, icon }: {
   name: string;
   health: SubsystemHealth;
@@ -53,10 +75,19 @@ function SubsystemRow({ name, health, icon }: {
   );
 }
 
-export function CollectorMonitor() {
+type CollectorMonitorProps = {
+  desktopClient?: DesktopRuntimeClient;
+};
+
+export function CollectorMonitor({
+  desktopClient = tauriDesktopRuntimeClient
+}: CollectorMonitorProps = {}) {
   const [health, setHealth] = useState<CollectorHealth | null>(null);
   const [status, setStatus] = useState<MonitorStatus>("connecting");
   const [error, setError] = useState<string | null>(null);
+  const [desktopStatus, setDesktopStatus] = useState<CollectorDesktopStatus | null>(null);
+  const [desktopError, setDesktopError] = useState<string | null>(null);
+  const [controlBusy, setControlBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -84,6 +115,32 @@ export function CollectorMonitor() {
       clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function pollDesktopStatus() {
+      try {
+        const nextStatus = await desktopClient.getCollectorStatus();
+        if (active) {
+          setDesktopStatus(nextStatus);
+          setDesktopError(null);
+        }
+      } catch (err) {
+        if (active) {
+          setDesktopStatus(null);
+          setDesktopError(err instanceof Error ? err.message : String(err));
+        }
+      }
+    }
+
+    void pollDesktopStatus();
+    const interval = setInterval(() => void pollDesktopStatus(), 5000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [desktopClient]);
 
   if (status === "connecting") {
     return (
@@ -139,6 +196,13 @@ export function CollectorMonitor() {
         <Server aria-hidden="true" size={20} />
         <h2>Collector Monitor</h2>
       </div>
+      <DesktopControlBar
+        status={desktopStatus}
+        error={desktopError}
+        busy={controlBusy}
+        onPause={pauseCapture}
+        onResume={resumeCapture}
+      />
 
       <div className="healthGrid">
         <div className="healthOverview">
@@ -261,6 +325,86 @@ export function CollectorMonitor() {
             )}
           </div>
         </div>
+      )}
+    </div>
+  );
+
+  async function pauseCapture() {
+    setControlBusy(true);
+    setDesktopError(null);
+    try {
+      setDesktopStatus(await desktopClient.stopCollector());
+    } catch (err) {
+      setDesktopError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setControlBusy(false);
+    }
+  }
+
+  async function resumeCapture() {
+    setControlBusy(true);
+    setDesktopError(null);
+    try {
+      setDesktopStatus(await desktopClient.startCollector());
+    } catch (err) {
+      setDesktopError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setControlBusy(false);
+    }
+  }
+}
+
+function DesktopControlBar({
+  status,
+  error,
+  busy,
+  onPause,
+  onResume
+}: {
+  status: CollectorDesktopStatus | null;
+  error: string | null;
+  busy: boolean;
+  onPause: () => void;
+  onResume: () => void;
+}) {
+  if (!status) {
+    return error ? (
+      <p className="desktopRuntimeHint" role="status">
+        {error}
+      </p>
+    ) : null;
+  }
+
+  const canPause = status.managed && status.status === "running";
+  const canResume = !status.managed && status.status !== "external";
+
+  return (
+    <div className="desktopControlBar" aria-label="Desktop capture controls">
+      <div>
+        <span className={`healthPill ${status.status}`}>
+          {desktopStatusLabel(status)}
+        </span>
+        <span className="desktopControlMeta">
+          {status.apiUrl}
+          {status.pid ? ` · pid ${status.pid}` : ""}
+        </span>
+      </div>
+      {canPause && (
+        <button type="button" disabled={busy} onClick={onPause}>
+          <CirclePause aria-hidden="true" size={16} />
+          <span>Pause Capture</span>
+        </button>
+      )}
+      {canResume && (
+        <button type="button" disabled={busy} onClick={onResume}>
+          <Play aria-hidden="true" size={16} />
+          <span>Resume Capture</span>
+        </button>
+      )}
+      {error && (
+        <p className="errors" role="status">
+          {error}
+        </p>
       )}
     </div>
   );

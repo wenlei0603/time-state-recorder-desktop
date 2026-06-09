@@ -5,7 +5,11 @@ use std::{
     time::Duration,
 };
 
-use tauri::{AppHandle, Manager, RunEvent, State};
+use tauri::{
+    App, AppHandle, Emitter, Manager, RunEvent, State,
+    menu::{Menu, MenuItem, PredefinedMenuItem},
+    tray::TrayIconBuilder,
+};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_shell::{ShellExt, process::CommandChild};
 
@@ -20,6 +24,12 @@ use secrets::{DpapiSecretStore, SecretKey, SecretStore};
 
 const COLLECTOR_SIDECAR: &str = "tsr-collector";
 const DEFAULT_COLLECTOR_ADDR: &str = "127.0.0.1:4317";
+const TRAY_OPEN_APP: &str = "open_app";
+const TRAY_OPEN_SETTINGS: &str = "open_settings";
+const TRAY_DAILY_BRIEF: &str = "generate_daily_brief";
+const TRAY_PAUSE_CAPTURE: &str = "pause_capture";
+const TRAY_RESUME_CAPTURE: &str = "resume_capture";
+const TRAY_QUIT: &str = "quit";
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -118,6 +128,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+            configure_tray(app)?;
             let handle = app.handle().clone();
             let state = app.state::<CollectorState>();
             if let Err(error) = start_collector_from_app(&handle, &state) {
@@ -146,6 +157,87 @@ fn main() {
             let _ = state.stop();
         }
     });
+}
+
+fn configure_tray(app: &mut App) -> tauri::Result<()> {
+    let open_app = MenuItem::with_id(app, TRAY_OPEN_APP, "Open App", true, None::<&str>)?;
+    let open_settings =
+        MenuItem::with_id(app, TRAY_OPEN_SETTINGS, "Open Settings", true, None::<&str>)?;
+    let daily_brief = MenuItem::with_id(
+        app,
+        TRAY_DAILY_BRIEF,
+        "Generate Daily Brief",
+        true,
+        None::<&str>,
+    )?;
+    let pause_capture =
+        MenuItem::with_id(app, TRAY_PAUSE_CAPTURE, "Pause Capture", true, None::<&str>)?;
+    let resume_capture = MenuItem::with_id(
+        app,
+        TRAY_RESUME_CAPTURE,
+        "Resume Capture",
+        true,
+        None::<&str>,
+    )?;
+    let quit = MenuItem::with_id(app, TRAY_QUIT, "Quit", true, None::<&str>)?;
+    let separator = PredefinedMenuItem::separator(app)?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &open_app,
+            &open_settings,
+            &daily_brief,
+            &separator,
+            &pause_capture,
+            &resume_capture,
+            &separator,
+            &quit,
+        ],
+    )?;
+
+    let mut tray = TrayIconBuilder::with_id("main-tray")
+        .tooltip("Time State Recorder")
+        .menu(&menu)
+        .show_menu_on_left_click(true)
+        .on_menu_event(|app, menu_event| {
+            match menu_event.id().0.as_str() {
+                TRAY_OPEN_APP => show_main_window(app),
+                TRAY_OPEN_SETTINGS => {
+                    show_main_window(app);
+                    let _ = app.emit("tsr://open-settings", ());
+                }
+                TRAY_DAILY_BRIEF => {
+                    show_main_window(app);
+                    let _ = app.emit("tsr://open-daily-brief", ());
+                }
+                TRAY_PAUSE_CAPTURE => {
+                    let state = app.state::<CollectorState>();
+                    if state.snapshot().managed {
+                        let _ = state.stop();
+                    }
+                }
+                TRAY_RESUME_CAPTURE => {
+                    let state = app.state::<CollectorState>();
+                    let _ = start_collector_from_app(app, &state);
+                }
+                TRAY_QUIT => app.exit(0),
+                _ => {}
+            }
+        });
+
+    if let Some(icon) = app.default_window_icon().cloned() {
+        tray = tray.icon(icon);
+    }
+
+    tray.build(app)?;
+    Ok(())
+}
+
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
 }
 
 #[derive(Debug, Clone)]

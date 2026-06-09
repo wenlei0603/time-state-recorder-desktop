@@ -595,6 +595,54 @@ textarea {
   gap: 14px;
 }
 
+.desktopControlBar {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #d9dfd8;
+  border-radius: 8px;
+  background: #f8faf6;
+  padding: 8px 10px;
+}
+
+.desktopControlBar > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.desktopControlBar button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #b7c8bd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #10241c;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.desktopControlBar button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.desktopControlMeta,
+.desktopRuntimeHint {
+  color: #5f6d65;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .healthGrid {
   display: flex;
   align-items: center;

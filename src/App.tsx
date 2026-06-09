@@ -36,6 +36,10 @@ import {
   type DesktopConfigClient
 } from "./lib/desktopConfig";
 import {
+  tauriDesktopRuntimeClient,
+  type DesktopRuntimeClient
+} from "./lib/desktopRuntime";
+import {
   analyzeScreenshot,
   fetchScreenshots,
   fetchScreenshotSummary,
@@ -77,10 +81,12 @@ type RefreshContext = {
 
 type AppProps = {
   desktopConfigClient?: DesktopConfigClient;
+  desktopRuntimeClient?: DesktopRuntimeClient;
 };
 
 export function App({
-  desktopConfigClient = tauriDesktopConfigClient
+  desktopConfigClient = tauriDesktopConfigClient,
+  desktopRuntimeClient = tauriDesktopRuntimeClient
 }: AppProps = {}) {
   const [events, setEvents] = useState<TimeEvent[]>(feature1SampleEvents);
   const [activityBuckets, setActivityBuckets] =
@@ -163,6 +169,44 @@ export function App({
       active = false;
     };
   }, [desktopConfigClient]);
+
+  useEffect(() => {
+    let unlistenSettings: (() => void) | undefined;
+    let unlistenDailyBrief: (() => void) | undefined;
+    let active = true;
+
+    void desktopRuntimeClient
+      .listenRuntimeEvent("open-settings", () => {
+        setLatestRefreshContext({ viewMode: "settings" });
+        setViewMode("settings");
+      })
+      .then((unlisten) => {
+        if (active) {
+          unlistenSettings = unlisten;
+        } else {
+          unlisten();
+        }
+      });
+
+    void desktopRuntimeClient
+      .listenRuntimeEvent("open-daily-brief", () => {
+        setLatestRefreshContext({ viewMode: "daily" });
+        setViewMode("daily");
+      })
+      .then((unlisten) => {
+        if (active) {
+          unlistenDailyBrief = unlisten;
+        } else {
+          unlisten();
+        }
+      });
+
+    return () => {
+      active = false;
+      unlistenSettings?.();
+      unlistenDailyBrief?.();
+    };
+  }, [desktopRuntimeClient]);
 
   useEffect(() => {
     if (sourceMode !== "live") {
@@ -759,7 +803,7 @@ export function App({
             inputSourceMode={inputStatus}
           />
           <section className="workspace dashboardMonitor">
-            <CollectorMonitor />
+            <CollectorMonitor desktopClient={desktopRuntimeClient} />
           </section>
         </>
       )}

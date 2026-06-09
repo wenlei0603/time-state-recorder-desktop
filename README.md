@@ -22,7 +22,7 @@ imported from the current Time State Recorder product line.
 
 ## Current Status
 
-Status: Phase 4 config and secret-store foundation.
+Status: Phase 6 desktop controls in progress.
 
 Implemented in this repo:
 
@@ -42,10 +42,15 @@ Implemented in this repo:
   system settings.
 - DPAPI-backed Windows secret storage for the AI provider key; the key is not
   serialized into `config.json`.
+- First-run setup and Settings UI with local-only defaults, AI-provider
+  configuration, masked API-key controls, external-AI warning, and native data
+  directory picker.
+- Desktop runtime controls for a desktop-managed collector, including pause and
+  resume from the Collector Monitor and tray menu.
 
-Not wired yet:
+Still pending:
 
-- First-run setup and Settings UI.
+- Full launch-on-startup and start-minimized behavior.
 - Release signing, checksums, and GitHub release automation.
 
 ## Repository Layout
@@ -87,7 +92,9 @@ agent worktree directories.
 2. Add desktop build foundation.
 3. Replace env-file provider configuration with typed config and secret storage.
 4. Build first-run setup and Settings UI.
-5. Package a Windows release artifact.
+5. Complete desktop controls, including startup/minimized behavior and port
+   conflict recovery.
+6. Package a Windows release artifact with checksums and release notes.
 
 ## Desktop Development
 
@@ -111,9 +118,10 @@ npm run desktop:build
 The current desktop shell reuses the imported Vite/React review UI. Collector
 startup is managed as a Tauri sidecar when `127.0.0.1:4317` is free; if another
 collector is already listening there, the desktop state reports it as an
-external collector instead of stopping it. Database location selection and AI
-provider credentials now have backend APIs; first-run and Settings UI are the
-next product layer.
+external collector instead of stopping it. A desktop-managed collector can be
+paused or resumed from the Collector Monitor or tray menu. Native Settings UI
+controls data location, capture options, privacy defaults, and
+OpenAI-compatible provider metadata.
 
 `npm run desktop:build` creates the Windows installer under
 `target/x86_64-pc-windows-gnullvm/release/bundle/nsis/` for the current pinned
