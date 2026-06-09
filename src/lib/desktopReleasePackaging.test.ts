@@ -23,6 +23,7 @@ describe("desktop release packaging contract", () => {
 
     expect(script).toContain("npm run desktop:build");
     expect(script).toContain("Time State Recorder Desktop_$Version_x64-setup.exe");
+    expect(script).toContain("time-state-recorder-desktop-v$Version-windows-x64-setup.exe");
     expect(script).toContain("[System.Security.Cryptography.SHA256]");
     expect(script).toContain("ComputeHash");
     expect(script).toContain(".sha256");

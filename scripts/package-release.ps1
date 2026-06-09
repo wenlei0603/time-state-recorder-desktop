@@ -55,8 +55,9 @@ $releaseRoot = Join-Path $releaseOutputRoot "time-state-recorder-desktop-v$Versi
 $bundleRoot = Join-Path $Root "target\x86_64-pc-windows-gnullvm\release\bundle\nsis"
 
 # Installer file pattern: Time State Recorder Desktop_$Version_x64-setup.exe
-$installerName = "Time State Recorder Desktop_${Version}_x64-setup.exe"
-$installerPath = Join-Path $bundleRoot $installerName
+$tauriInstallerName = "Time State Recorder Desktop_${Version}_x64-setup.exe"
+$installerName = "time-state-recorder-desktop-v$Version-windows-x64-setup.exe"
+$installerPath = Join-Path $bundleRoot $tauriInstallerName
 $releaseNotesSource = Join-Path $Root "docs\releases\v$Version.md"
 
 if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) {
@@ -104,6 +105,7 @@ $manifest = [ordered]@{
     version = $Version
     generatedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
     sourceCommit = $sourceCommit
+    tauriArtifactName = $tauriInstallerName
     artifactName = $installerName
     artifactPath = $releaseInstallerPath
     sha256 = $sha256
