@@ -11,6 +11,7 @@
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
     "desktop:info": "tauri info",
+    "desktop:release": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1",
     "desktop:prepare-sidecar": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prepare-tauri-sidecar.ps1",
     "desktop:dev-ui": "npm run desktop:prepare-sidecar && vite --host 127.0.0.1 --port 5173 --strictPort",
     "smoke:notion-daily-archive": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-notion-daily-archive.ps1",

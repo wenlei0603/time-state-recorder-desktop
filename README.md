@@ -52,7 +52,7 @@ Implemented in this repo:
 
 Still pending:
 
-- Release signing, checksums, and GitHub release automation.
+- Release signing and GitHub release publication.
 
 ## Repository Layout
 
@@ -114,6 +114,7 @@ npm run desktop:info
 npm run desktop:prepare-sidecar
 npm run desktop:dev
 npm run desktop:build
+npm run desktop:release
 ```
 
 The current desktop shell reuses the imported Vite/React review UI. Collector
@@ -129,6 +130,11 @@ switching API ports without stopping another collector process.
 `npm run desktop:build` creates the Windows installer under
 `target/x86_64-pc-windows-gnullvm/release/bundle/nsis/` for the current pinned
 toolchain.
+
+`npm run desktop:release` builds the desktop installer and writes a public
+release package under `output/release/time-state-recorder-desktop-v<version>/`
+with the NSIS installer, `RELEASE_NOTES.md`, a `.sha256` checksum file, and
+`release-manifest.json`.
 
 ## Configuration
 

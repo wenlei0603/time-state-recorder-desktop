@@ -293,7 +293,10 @@ Completed evidence checkpoints:
   OpenAI-compatible provider settings are implemented.
 - Phase 6 tray controls, pause/resume capture, launch-on-startup,
   start-minimized behavior, and port-conflict recovery are implemented.
+- Phase 7 local release packaging command, release notes, SHA256 checksum, and
+  release manifest generation are implemented.
 
 Current next action:
 
-- Complete Phase 7 public packaging, then Phase 8 GitHub release publication.
+- Complete release publication in Phase 8 after the packaging branch is pushed
+  and integrated.

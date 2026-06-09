@@ -1,63 +1,121 @@
 param(
     [string]$Version = "",
-    [string]$Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+    [string]$Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
+    [switch]$SkipBuild
 )
 
 $ErrorActionPreference = "Stop"
+
+function Get-Sha256Hex {
+    param([string]$Path)
+
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        $sha256Algorithm = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            $hashBytes = $sha256Algorithm.ComputeHash($stream)
+            return -join ($hashBytes | ForEach-Object { $_.ToString("x2") })
+        }
+        finally {
+            $sha256Algorithm.Dispose()
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
+$Root = (Resolve-Path -LiteralPath $Root).Path
 
 if (-not $Version) {
     $packageJson = Get-Content -LiteralPath (Join-Path $Root "package.json") -Raw | ConvertFrom-Json
     $Version = [string]$packageJson.version
 }
 
-$releaseRoot = Join-Path $Root "output\release\time-state-recorder-v$Version"
-$zipPath = Join-Path $Root "output\release\time-state-recorder-v$Version-windows-x64.zip"
-$collectorExe = Join-Path $Root "target\x86_64-pc-windows-gnullvm\release\tsr-collector.exe"
-$distIndex = Join-Path $Root "dist\index.html"
-
-if (-not (Test-Path -LiteralPath $collectorExe -PathType Leaf)) {
-    throw "Missing release collector executable: $collectorExe"
+$cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
+if ((Test-Path -LiteralPath $cargoBin -PathType Container) -and -not ($env:Path -split ';' | Where-Object { $_ -eq $cargoBin })) {
+    $env:Path = "$cargoBin;$env:Path"
 }
-if (-not (Test-Path -LiteralPath $distIndex -PathType Leaf)) {
-    throw "Missing WebUI build: $distIndex"
+
+if (-not $SkipBuild) {
+    Push-Location $Root
+    try {
+        & npm run desktop:build
+        if ($LASTEXITCODE -ne 0) {
+            throw "npm run desktop:build failed with exit code $LASTEXITCODE"
+        }
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+$releaseOutputRoot = Join-Path $Root "output\release"
+$releaseRoot = Join-Path $releaseOutputRoot "time-state-recorder-desktop-v$Version"
+$bundleRoot = Join-Path $Root "target\x86_64-pc-windows-gnullvm\release\bundle\nsis"
+
+# Installer file pattern: Time State Recorder Desktop_$Version_x64-setup.exe
+$installerName = "Time State Recorder Desktop_${Version}_x64-setup.exe"
+$installerPath = Join-Path $bundleRoot $installerName
+$releaseNotesSource = Join-Path $Root "docs\releases\v$Version.md"
+
+if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) {
+    throw "Missing Tauri installer: $installerPath"
+}
+if (-not (Test-Path -LiteralPath $releaseNotesSource -PathType Leaf)) {
+    throw "Missing release notes: $releaseNotesSource"
+}
+
+New-Item -ItemType Directory -Force -Path $releaseOutputRoot | Out-Null
+
+$resolvedOutputRoot = (Resolve-Path -LiteralPath $releaseOutputRoot).Path
+$candidateReleaseRoot = [System.IO.Path]::GetFullPath($releaseRoot)
+if (-not $candidateReleaseRoot.StartsWith($resolvedOutputRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Refusing to clean release directory outside output/release: $candidateReleaseRoot"
 }
 
 if (Test-Path -LiteralPath $releaseRoot) {
     Remove-Item -LiteralPath $releaseRoot -Recurse -Force
 }
-if (Test-Path -LiteralPath $zipPath) {
-    Remove-Item -LiteralPath $zipPath -Force
+New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
+
+$releaseInstallerPath = Join-Path $releaseRoot $installerName
+$releaseNotesPath = Join-Path $releaseRoot "RELEASE_NOTES.md"
+$sha256Path = "$releaseInstallerPath.sha256"
+$manifestPath = Join-Path $releaseRoot "release-manifest.json"
+
+Copy-Item -LiteralPath $installerPath -Destination $releaseInstallerPath
+Copy-Item -LiteralPath $releaseNotesSource -Destination $releaseNotesPath
+
+$sha256 = Get-Sha256Hex -Path $releaseInstallerPath
+"$sha256  $installerName" | Set-Content -LiteralPath $sha256Path -Encoding ASCII
+
+$sourceCommit = $null
+try {
+    Push-Location $Root
+    $sourceCommit = (& git rev-parse HEAD).Trim()
+}
+finally {
+    Pop-Location
 }
 
-New-Item -ItemType Directory -Force -Path `
-    (Join-Path $releaseRoot "bin"), `
-    (Join-Path $releaseRoot "scripts"), `
-    (Join-Path $releaseRoot "dist") | Out-Null
+$manifest = [ordered]@{
+    productName = "Time State Recorder Desktop"
+    version = $Version
+    generatedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
+    sourceCommit = $sourceCommit
+    artifactName = $installerName
+    artifactPath = $releaseInstallerPath
+    sha256 = $sha256
+    sha256Path = $sha256Path
+    releaseNotesPath = $releaseNotesPath
+}
 
-Copy-Item -LiteralPath $collectorExe -Destination (Join-Path $releaseRoot "bin\tsr-collector.exe")
-Copy-Item -LiteralPath (Join-Path $Root "Start Time State Recorder.bat") -Destination $releaseRoot
-Copy-Item -LiteralPath (Join-Path $Root "Stop Time State Recorder.bat") -Destination $releaseRoot
-Copy-Item -LiteralPath (Join-Path $Root "README.md") -Destination $releaseRoot
-Copy-Item -LiteralPath (Join-Path $Root "collector\blocker_config.json") -Destination (Join-Path $releaseRoot "blocker_config.json")
-Copy-Item -LiteralPath (Join-Path $Root "scripts\start-user.ps1") -Destination (Join-Path $releaseRoot "scripts\start-user.ps1")
-Copy-Item -LiteralPath (Join-Path $Root "scripts\stop-user.ps1") -Destination (Join-Path $releaseRoot "scripts\stop-user.ps1")
-Copy-Item -LiteralPath (Join-Path $Root "scripts\web-server.mjs") -Destination (Join-Path $releaseRoot "scripts\web-server.mjs")
-Copy-Item -Path (Join-Path $Root "dist\*") -Destination (Join-Path $releaseRoot "dist") -Recurse -Force
+$manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $manifestPath -Encoding ASCII
 
-@"
-Time State Recorder v$Version
+Write-Host "Packaged Time State Recorder Desktop v$Version"
+Write-Host "Installer: $releaseInstallerPath"
+Write-Host "SHA256: $sha256"
+Write-Host "Manifest: $manifestPath"
 
-Quick start:
-1. Extract this zip.
-2. Double-click Start Time State Recorder.bat.
-3. The app opens at http://127.0.0.1:5173.
-4. Double-click Stop Time State Recorder.bat to stop it.
-
-Runtime requirement:
-- Node.js must be available on PATH for the local WebUI server.
-- No Visual Studio or Rust toolchain is needed for this packaged build.
-"@ | Set-Content -LiteralPath (Join-Path $releaseRoot "RELEASE_README.txt") -Encoding ASCII
-
-Compress-Archive -LiteralPath $releaseRoot -DestinationPath $zipPath -CompressionLevel Optimal
-
-Get-Item -LiteralPath $zipPath
+Get-Item -LiteralPath $manifestPath
