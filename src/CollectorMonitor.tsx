@@ -9,6 +9,7 @@ import {
   Server
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { createCollectorFetcher } from "./lib/collectorFetch";
 import { fetchCollectorHealth } from "./lib/health";
 import {
   tauriDesktopRuntimeClient,
@@ -94,7 +95,9 @@ export function CollectorMonitor({
 
     async function poll() {
       try {
-        const h = await fetchCollectorHealth();
+        const h = await fetchCollectorHealth(
+          createCollectorFetcher(desktopStatus?.apiUrl)
+        );
         if (active) {
           setHealth(h);
           setStatus("connected");
@@ -114,7 +117,7 @@ export function CollectorMonitor({
       active = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [desktopStatus?.apiUrl]);
 
   useEffect(() => {
     let active = true;
@@ -376,7 +379,8 @@ function DesktopControlBar({
   }
 
   const canPause = status.managed && status.status === "running";
-  const canResume = !status.managed && status.status !== "external";
+  const canResume = !status.managed;
+  const recoveryHint = status.lastError ?? error;
 
   return (
     <div className="desktopControlBar" aria-label="Desktop capture controls">
@@ -401,9 +405,9 @@ function DesktopControlBar({
           <span>Resume Capture</span>
         </button>
       )}
-      {error && (
+      {recoveryHint && (
         <p className="errors" role="status">
-          {error}
+          {recoveryHint}
         </p>
       )}
     </div>

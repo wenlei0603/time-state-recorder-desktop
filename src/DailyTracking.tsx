@@ -1,6 +1,7 @@
 import { Camera, Clock, ImageIcon, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DailyBriefPanel } from "./DailyBriefPanel";
+import { resolveCollectorUrl } from "./lib/collectorFetch";
 import type { PrivacyMode, UiSourceMode } from "./lib/uiModel";
 import type {
   DailyBriefResponse,
@@ -12,6 +13,7 @@ import type {
 interface DailyTrackingProps {
   date: string;
   screenshots: ScreenshotMeta[];
+  collectorApiUrl?: string;
   summary: ScreenshotSummary;
   sourceMode: UiSourceMode;
   loading: boolean;
@@ -46,6 +48,7 @@ function toLocalDate(value: string): string {
 export function DailyTracking({
   date,
   screenshots,
+  collectorApiUrl,
   summary,
   sourceMode,
   loading,
@@ -198,7 +201,7 @@ export function DailyTracking({
                   <div className="timelineThumb">
                     {privacyMode === "raw" ? (
                       <img
-                        src={`/screenshots/${shot.filePath}`}
+                        src={resolveCollectorUrl(`/screenshots/${shot.filePath}`, collectorApiUrl)}
                         alt={`Screenshot at ${formatTime(shot.capturedAt)}`}
                         width={shot.width}
                         height={shot.height}
@@ -257,7 +260,7 @@ export function DailyTracking({
                   {expanded === shot.id && privacyMode === "raw" && (
                     <div className="timelineExpand">
                       <img
-                        src={`/screenshots/${shot.filePath}`}
+                        src={resolveCollectorUrl(`/screenshots/${shot.filePath}`, collectorApiUrl)}
                         alt={`Full screenshot at ${formatTime(shot.capturedAt)}`}
                         onError={(e) => {
                           (e.currentTarget as HTMLImageElement).style.display = "none";

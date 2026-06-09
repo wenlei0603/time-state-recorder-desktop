@@ -9,6 +9,7 @@ import {
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { buildTodayFlowModel } from "./lib/flowModel";
+import { resolveCollectorUrl } from "./lib/collectorFetch";
 import { formatDuration } from "./lib/uiModel";
 import type {
   CollectorHealth,
@@ -26,6 +27,7 @@ type TodayFlowBoardProps = {
   events: TimeEvent[];
   screenshotSummary?: ScreenshotSummary;
   screenshots?: ScreenshotMeta[];
+  collectorApiUrl?: string;
   inputSummary?: InputSummary;
   health?: CollectorHealth;
   privacyMode: PrivacyMode;
@@ -42,6 +44,7 @@ export function TodayFlowBoard({
   events,
   screenshotSummary,
   screenshots = [],
+  collectorApiUrl,
   inputSummary,
   health,
   privacyMode,
@@ -246,6 +249,7 @@ export function TodayFlowBoard({
                 screenshots={selectedScreenshots}
                 screenshotsVisible={screenshotsVisible}
                 summaryByScreenshotId={summaryByScreenshotId}
+                collectorApiUrl={collectorApiUrl}
                 analyzingScreenshotId={analyzingScreenshotId}
                 onAnalyzeScreenshot={onAnalyzeScreenshot}
               />
@@ -262,6 +266,7 @@ function ScreenshotEvidence({
   screenshots,
   screenshotsVisible,
   summaryByScreenshotId,
+  collectorApiUrl,
   analyzingScreenshotId,
   onAnalyzeScreenshot,
 }: {
@@ -269,6 +274,7 @@ function ScreenshotEvidence({
   screenshots: ScreenshotMeta[];
   screenshotsVisible: boolean;
   summaryByScreenshotId: Map<number, VisualSummary>;
+  collectorApiUrl?: string;
   analyzingScreenshotId?: number | null;
   onAnalyzeScreenshot: (screenshotId: number) => void;
 }) {
@@ -299,7 +305,7 @@ function ScreenshotEvidence({
         return (
           <figure className="todayScreenshotCard" key={shot.id}>
             <img
-              src={`/screenshots/${shot.filePath}`}
+              src={resolveCollectorUrl(`/screenshots/${shot.filePath}`, collectorApiUrl)}
               alt={`Evidence screenshot at ${formatTime(shot.capturedAt)}`}
               width={shot.width}
               height={shot.height}

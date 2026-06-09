@@ -180,4 +180,20 @@ describe("SettingsView", () => {
     expect(screen.getByText(/Screenshots: no/i)).toBeInTheDocument();
     expect(screen.queryByText(/sk-live-secret/i)).not.toBeInTheDocument();
   });
+
+  it("saves Windows startup and tray system preferences from Settings", async () => {
+    const client = createClient();
+    render(<SettingsView client={client} />);
+
+    fireEvent.click(await screen.findByLabelText(/launch on startup/i));
+    fireEvent.click(screen.getByLabelText(/start minimized/i));
+    fireEvent.click(screen.getByLabelText(/tray menu/i));
+    fireEvent.click(screen.getByRole("button", { name: /save settings/i }));
+
+    await waitFor(() => expect(client.saveConfig).toHaveBeenCalledTimes(1));
+    const savedConfig = vi.mocked(client.saveConfig).mock.calls[0][0];
+    expect(savedConfig.system.launchOnStartup).toBe(true);
+    expect(savedConfig.system.startMinimized).toBe(true);
+    expect(savedConfig.system.trayEnabled).toBe(false);
+  });
 });

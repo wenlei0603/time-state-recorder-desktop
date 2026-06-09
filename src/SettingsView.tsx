@@ -294,6 +294,28 @@ export function SettingsView({
           />
         </section>
 
+        <section className="panel settingsPanel" aria-label="Windows Desktop">
+          <div className="panelHeader">
+            <ServerCog aria-hidden="true" size={20} />
+            <h3>Windows</h3>
+          </div>
+          <CheckboxField
+            label="Launch on startup"
+            checked={draft.system.launchOnStartup}
+            onChange={(checked) => updateSystem({ launchOnStartup: checked })}
+          />
+          <CheckboxField
+            label="Start minimized"
+            checked={draft.system.startMinimized}
+            onChange={(checked) => updateSystem({ startMinimized: checked })}
+          />
+          <CheckboxField
+            label="Tray menu"
+            checked={draft.system.trayEnabled}
+            onChange={(checked) => updateSystem({ trayEnabled: checked })}
+          />
+        </section>
+
         <section className="panel settingsPanel aiSettingsPanel" aria-label="AI Provider">
           <div className="panelHeader">
             <KeyRound aria-hidden="true" size={20} />

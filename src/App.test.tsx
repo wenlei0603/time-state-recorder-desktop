@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import * as desktopConfig from "./lib/desktopConfig";
+import type { DesktopRuntimeClient } from "./lib/desktopRuntime";
 
 function healthResponse() {
   return {
@@ -281,6 +282,36 @@ function jsonResponse(body: unknown) {
     status: 200,
     statusText: "OK",
     json: async () => body,
+  };
+}
+
+function createRuntimeClient(apiUrl = "http://127.0.0.1:4317"): DesktopRuntimeClient {
+  return {
+    getCollectorStatus: vi.fn(async () => ({
+      status: "running",
+      managed: true,
+      pid: 1234,
+      apiUrl,
+      dataDir: "D:/TSR/data",
+      lastError: null
+    })),
+    startCollector: vi.fn(async () => ({
+      status: "running",
+      managed: true,
+      pid: 1234,
+      apiUrl,
+      dataDir: "D:/TSR/data",
+      lastError: null
+    })),
+    stopCollector: vi.fn(async () => ({
+      status: "stopped",
+      managed: false,
+      pid: null,
+      apiUrl,
+      dataDir: "D:/TSR/data",
+      lastError: null
+    })),
+    listenRuntimeEvent: vi.fn(async () => () => undefined)
   };
 }
 
@@ -989,7 +1020,31 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: /first-run setup/i })).toBeInTheDocument();
   });
+
+  it("routes live collector requests through the desktop runtime API URL", async () => {
+    const fetcher = vi.fn((input: string) => liveDataResponse(stripOrigin(input)));
+    vi.stubGlobal("fetch", fetcher);
+
+    render(<App desktopRuntimeClient={createRuntimeClient("http://127.0.0.1:5317")} />);
+
+    expect(await screen.findAllByText("Hidden in redacted mode")).not.toHaveLength(0);
+    expect(fetcher).toHaveBeenCalledWith("http://127.0.0.1:5317/api/time-events", undefined);
+    expect(
+      fetcher.mock.calls.some(([input]) =>
+        String(input).startsWith("http://127.0.0.1:5317/api/activity-buckets")
+      )
+    ).toBe(true);
+  });
 });
+
+function stripOrigin(input: string): string {
+  try {
+    const url = new URL(input);
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return input;
+  }
+}
 
 async function liveDataResponse(input: string) {
   if (input === "/api/analysis-status") {

@@ -22,7 +22,7 @@ imported from the current Time State Recorder product line.
 
 ## Current Status
 
-Status: Phase 6 desktop controls in progress.
+Status: Phase 7 public packaging in progress.
 
 Implemented in this repo:
 
@@ -47,10 +47,11 @@ Implemented in this repo:
   directory picker.
 - Desktop runtime controls for a desktop-managed collector, including pause and
   resume from the Collector Monitor and tray menu.
+- Windows desktop startup controls, including launch-on-startup,
+  start-minimized behavior, tray enablement, and visible port-conflict recovery.
 
 Still pending:
 
-- Full launch-on-startup and start-minimized behavior.
 - Release signing, checksums, and GitHub release automation.
 
 ## Repository Layout
@@ -121,7 +122,9 @@ collector is already listening there, the desktop state reports it as an
 external collector instead of stopping it. A desktop-managed collector can be
 paused or resumed from the Collector Monitor or tray menu. Native Settings UI
 controls data location, capture options, privacy defaults, and
-OpenAI-compatible provider metadata.
+OpenAI-compatible provider metadata. Windows settings can register launch on
+startup, start the app hidden to tray, and recover from port conflicts by
+switching API ports without stopping another collector process.
 
 `npm run desktop:build` creates the Windows installer under
 `target/x86_64-pc-windows-gnullvm/release/bundle/nsis/` for the current pinned

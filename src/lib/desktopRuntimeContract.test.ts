@@ -32,4 +32,16 @@ describe("desktop runtime controls contract", () => {
     expect(mainRs).toContain("Quit");
     expect(mainRs).toContain("menu_event");
   });
+
+  test("Tauri main process wires startup, minimized launch, and port recovery behavior", () => {
+    const cargoToml = readRepoText("src-tauri/Cargo.toml");
+    const mainRs = readRepoText("src-tauri/src/main.rs");
+
+    expect(cargoToml).toContain("tauri-plugin-autostart");
+    expect(mainRs).toContain("sync_launch_on_startup");
+    expect(mainRs).toContain("apply_start_minimized");
+    expect(mainRs).toContain("start_minimized");
+    expect(mainRs).toContain("Port conflict");
+    expect(mainRs).toContain("change API Port in Settings");
+  });
 });

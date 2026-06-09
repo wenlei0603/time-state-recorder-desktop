@@ -291,8 +291,9 @@ Completed evidence checkpoints:
 - Phase 4 typed config and DPAPI-backed secret storage are implemented.
 - Phase 5 first-run Settings UI, data-directory picker, local-only mode, and
   OpenAI-compatible provider settings are implemented.
+- Phase 6 tray controls, pause/resume capture, launch-on-startup,
+  start-minimized behavior, and port-conflict recovery are implemented.
 
 Current next action:
 
-- Continue Phase 6 desktop controls, then complete Phase 7 public packaging and
-  Phase 8 GitHub release publication.
+- Complete Phase 7 public packaging, then Phase 8 GitHub release publication.

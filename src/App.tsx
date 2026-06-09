@@ -26,6 +26,7 @@ import { feature2SampleSegments, feature2SampleSummary } from "./data/feature2Sa
 import { feature3SampleScreenshots, feature3SampleSummary } from "./data/feature3Sample";
 import { visualSummarySample } from "./data/visualSummarySample";
 import { fetchActivityBuckets, fetchTimeEvents } from "./lib/api";
+import { createCollectorFetcher, type CollectorFetcher } from "./lib/collectorFetch";
 import { fetchDailyBrief } from "./lib/dailyBrief";
 import { currentCollectorDate } from "./lib/dateQuery";
 import { fetchCollectorHealth } from "./lib/health";
@@ -106,6 +107,7 @@ export function App({
   const [insightReports, setInsightReports] = useState<InsightReport[]>([]);
   const [dailyBriefResponse, setDailyBriefResponse] =
     useState<DailyBriefResponse | undefined>(undefined);
+  const [collectorApiUrl, setCollectorApiUrl] = useState<string | undefined>(undefined);
   const [health, setHealth] = useState<CollectorHealth | undefined>(undefined);
   const [collectorStatus, setCollectorStatus] = useState<CollectorStatus>("sample");
   const [collectorError, setCollectorError] = useState<string | null>(null);
@@ -137,6 +139,7 @@ export function App({
     viewMode,
     date: queryDate
   });
+  const collectorApiUrlRef = useRef<string | undefined>(undefined);
   const collectorRequestGeneration = useRef(0);
   latestRefreshContext.current = { privacyMode, layers, viewMode, date: queryDate };
 
@@ -205,6 +208,23 @@ export function App({
       active = false;
       unlistenSettings?.();
       unlistenDailyBrief?.();
+    };
+  }, [desktopRuntimeClient]);
+
+  useEffect(() => {
+    let active = true;
+    desktopRuntimeClient
+      .getCollectorStatus()
+      .then((status) => {
+        if (active) {
+          rememberCollectorApiUrl(status.apiUrl);
+        }
+      })
+      .catch(() => {
+        // Browser preview does not have the Tauri desktop runtime.
+      });
+    return () => {
+      active = false;
     };
   }, [desktopRuntimeClient]);
 
@@ -288,9 +308,10 @@ export function App({
       effectivePrivacyMode === "raw" &&
       (effectiveViewMode === "daily" || effectiveViewMode === "today") &&
       effectiveLayers.screenshots;
+    const collectorFetch = await resolveCollectorFetcher();
 
     try {
-      void fetchTimeEvents()
+      void fetchTimeEvents(collectorFetch)
         .then((eventRows) => {
           if (!isCurrentRequest()) {
             return;
@@ -307,7 +328,7 @@ export function App({
           setCollectorError(errorMessage(error));
         });
 
-      void fetchCollectorHealth()
+      void fetchCollectorHealth(collectorFetch)
         .then((collectorHealth) => {
           if (isCurrentRequest()) {
             setHealth(collectorHealth);
@@ -319,9 +340,9 @@ export function App({
           }
         });
 
-      void refreshAnalysisFeedback(requestGeneration, effectiveDate);
+      void refreshAnalysisFeedback(requestGeneration, effectiveDate, collectorFetch);
 
-      void fetchActivityBuckets(effectiveDate, 180)
+      void fetchActivityBuckets(effectiveDate, 180, collectorFetch)
         .then((result) => {
           if (!isCurrentRequest() || !isDateCurrent()) {
             return;
@@ -341,8 +362,8 @@ export function App({
         });
 
       void Promise.allSettled([
-        fetchInputSummary(effectiveDate),
-        shouldLoadRawInput ? fetchTextSegments(effectiveDate) : Promise.resolve([])
+        fetchInputSummary(effectiveDate, collectorFetch),
+        shouldLoadRawInput ? fetchTextSegments(effectiveDate, collectorFetch) : Promise.resolve([])
       ])
         .then(([summaryResult, segmentsResult]) => {
           if (!isCurrentRequest()) {
@@ -380,9 +401,9 @@ export function App({
         });
 
       void Promise.allSettled([
-        fetchScreenshotSummary(effectiveDate),
+        fetchScreenshotSummary(effectiveDate, collectorFetch),
         shouldLoadScreenshotRows
-          ? fetchScreenshots(effectiveDate)
+          ? fetchScreenshots(effectiveDate, collectorFetch)
           : Promise.resolve([])
       ])
         .then(([screenshotSummaryResult, screenshotsResult]) => {
@@ -424,7 +445,7 @@ export function App({
           }
         });
 
-      void fetchVisualSummaries(effectiveDate)
+      void fetchVisualSummaries(effectiveDate, collectorFetch)
         .then((summaries) => {
           if (isCurrentRequest() && isDateCurrent()) {
             setVisualSummaries(summaries);
@@ -455,15 +476,16 @@ export function App({
 
   async function refreshAnalysisFeedback(
     requestGeneration = collectorRequestGeneration.current,
-    date = latestRefreshContext.current.date
+    date = latestRefreshContext.current.date,
+    collectorFetch = createCollectorFetcher(collectorApiUrlRef.current)
   ) {
     setAnalysisLoading(true);
     setAnalysisError(null);
     setDailyBriefError(null);
     const [statusResult, reportsResult, dailyBriefResult] = await Promise.allSettled([
-      fetchAnalysisStatus(),
-      fetchInsightReports({ date, kind: "5h", limit: 20 }),
-      fetchDailyBrief(date)
+      fetchAnalysisStatus(collectorFetch),
+      fetchInsightReports({ date, kind: "5h", limit: 20 }, collectorFetch),
+      fetchDailyBrief(date, collectorFetch)
     ]);
     if (requestGeneration !== collectorRequestGeneration.current) {
       return;
@@ -728,6 +750,7 @@ export function App({
             events={events}
             screenshotSummary={screenshotSummary}
             screenshots={screenshots}
+            collectorApiUrl={collectorApiUrl}
             inputSummary={inputSummary}
             health={health}
             privacyMode={privacyMode}
@@ -757,6 +780,7 @@ export function App({
           date={queryDate}
           screenshots={screenshots}
           summary={screenshotSummary}
+          collectorApiUrl={collectorApiUrl}
           sourceMode={screenshotStatus}
           loading={screenshotLoading}
           error={screenshotError}
@@ -880,7 +904,8 @@ export function App({
     setAnalyzingScreenshotId(screenshotId);
     setVisualSummaryError(null);
     try {
-      const summary = await analyzeScreenshot(screenshotId);
+      const collectorFetch = await resolveCollectorFetcher();
+      const summary = await analyzeScreenshot(screenshotId, collectorFetch);
       const latestContext = latestRefreshContext.current;
       if (latestContext.privacyMode !== "raw" || latestContext.date !== queryDate) {
         return;
@@ -889,7 +914,7 @@ export function App({
         ...current.filter((item) => item.screenshotId !== screenshotId),
         summary
       ]);
-      const refreshed = await fetchVisualSummaries(queryDate);
+      const refreshed = await fetchVisualSummaries(queryDate, collectorFetch);
       if (
         latestRefreshContext.current.privacyMode === "raw" &&
         latestRefreshContext.current.date === queryDate
@@ -908,6 +933,21 @@ export function App({
       ...latestRefreshContext.current,
       ...next
     };
+  }
+
+  async function resolveCollectorFetcher(): Promise<CollectorFetcher> {
+    try {
+      const status = await desktopRuntimeClient.getCollectorStatus();
+      rememberCollectorApiUrl(status.apiUrl);
+      return createCollectorFetcher(status.apiUrl);
+    } catch {
+      return createCollectorFetcher(collectorApiUrlRef.current);
+    }
+  }
+
+  function rememberCollectorApiUrl(apiUrl: string) {
+    collectorApiUrlRef.current = apiUrl;
+    setCollectorApiUrl(apiUrl);
   }
 }
 

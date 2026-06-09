@@ -1,4 +1,5 @@
 use std::{
+    env,
     net::{SocketAddr, TcpStream},
     path::PathBuf,
     sync::Mutex,
@@ -10,6 +11,7 @@ use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
 };
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_shell::{ShellExt, process::CommandChild};
 
@@ -51,8 +53,11 @@ fn desktop_health(state: State<'_, CollectorState>) -> DesktopHealth {
 }
 
 #[tauri::command]
-fn collector_status(state: State<'_, CollectorState>) -> CollectorDesktopStatus {
-    state.snapshot()
+fn collector_status(
+    app: AppHandle,
+    state: State<'_, CollectorState>,
+) -> Result<CollectorDesktopStatus, String> {
+    Ok(refresh_collector_status(&app, &state)?)
 }
 
 #[tauri::command]
@@ -77,6 +82,7 @@ fn get_desktop_config(app: AppHandle) -> Result<DesktopConfigView, String> {
 fn save_desktop_config(app: AppHandle, config: DesktopConfig) -> Result<DesktopConfigView, String> {
     let paths = config_paths_from_app(&app)?;
     DesktopConfigStore::new(paths).save(&config)?;
+    sync_launch_on_startup(&app, config.system.launch_on_startup)?;
     load_config_view(&app)
 }
 
@@ -127,10 +133,26 @@ fn main() {
         .manage(CollectorState::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            None,
+        ))
         .setup(|app| {
-            configure_tray(app)?;
             let handle = app.handle().clone();
+            let startup_config = load_desktop_config(&handle);
+            let tray_enabled = startup_config
+                .as_ref()
+                .map(|config| config.system.tray_enabled)
+                .unwrap_or(true);
+            configure_tray(app, tray_enabled)?;
             let state = app.state::<CollectorState>();
+            if let Ok(config) = startup_config.as_ref() {
+                apply_start_minimized(app, config);
+                if let Err(error) = sync_launch_on_startup(&handle, config.system.launch_on_startup)
+                {
+                    state.set_error(default_collector_status(Some(error)));
+                }
+            }
             if let Err(error) = start_collector_from_app(&handle, &state) {
                 state.set_error(default_collector_status(Some(error)));
             }
@@ -159,7 +181,11 @@ fn main() {
     });
 }
 
-fn configure_tray(app: &mut App) -> tauri::Result<()> {
+fn configure_tray(app: &mut App, enabled: bool) -> tauri::Result<()> {
+    if !enabled {
+        return Ok(());
+    }
+
     let open_app = MenuItem::with_id(app, TRAY_OPEN_APP, "Open App", true, None::<&str>)?;
     let open_settings =
         MenuItem::with_id(app, TRAY_OPEN_SETTINGS, "Open Settings", true, None::<&str>)?;
@@ -236,7 +262,40 @@ fn configure_tray(app: &mut App) -> tauri::Result<()> {
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
+        let _ = window.unminimize();
         let _ = window.set_focus();
+    }
+}
+
+fn apply_start_minimized(app: &App, config: &DesktopConfig) {
+    if !config.system.tray_enabled || !should_start_minimized(config, env::args()) {
+        return;
+    }
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
+    }
+}
+
+fn should_start_minimized<I>(config: &DesktopConfig, args: I) -> bool
+where
+    I: IntoIterator<Item = String>,
+{
+    config.system.start_minimized
+        || args
+            .into_iter()
+            .any(|arg| arg == "--minimized" || arg == "--start-minimized")
+}
+
+fn sync_launch_on_startup(app: &AppHandle, enabled: bool) -> Result<(), String> {
+    let manager = app.autolaunch();
+    if enabled {
+        manager
+            .enable()
+            .map_err(|error| format!("Unable to enable launch on startup: {error}"))
+    } else {
+        manager
+            .disable()
+            .map_err(|error| format!("Unable to disable launch on startup: {error}"))
     }
 }
 
@@ -350,7 +409,7 @@ impl CollectorState {
             pid: None,
             api_url: config.api_url(),
             data_dir: Some(config.data_dir()),
-            last_error: None,
+            last_error: Some(port_conflict_message(config)),
         };
         if let Ok(mut runtime) = self.inner.lock() {
             runtime.status = status.clone();
@@ -402,6 +461,45 @@ impl CollectorState {
         };
         Ok(runtime.status.clone())
     }
+
+    fn set_stopped_after_external_port_release(
+        &self,
+        config: &CollectorLaunchConfig,
+    ) -> CollectorDesktopStatus {
+        let status = CollectorDesktopStatus {
+            status: "stopped".into(),
+            managed: false,
+            pid: None,
+            api_url: config.api_url(),
+            data_dir: Some(config.data_dir()),
+            last_error: Some(
+                "The configured API port is free now. Click Resume Capture to start the desktop-managed collector."
+                    .into(),
+            ),
+        };
+        if let Ok(mut runtime) = self.inner.lock() {
+            runtime.status = status.clone();
+            runtime.child = None;
+        }
+        status
+    }
+}
+
+fn refresh_collector_status(
+    app: &AppHandle,
+    state: &CollectorState,
+) -> Result<CollectorDesktopStatus, String> {
+    let snapshot = state.snapshot();
+    if snapshot.status != "external" {
+        return Ok(snapshot);
+    }
+
+    let config = CollectorLaunchConfig::from_app(app)?;
+    if loopback_is_listening(&config.addr) {
+        Ok(state.set_external(&config))
+    } else {
+        Ok(state.set_stopped_after_external_port_release(&config))
+    }
 }
 
 fn start_collector_from_app(
@@ -450,6 +548,13 @@ fn default_collector_status(last_error: Option<String>) -> CollectorDesktopStatu
     }
 }
 
+fn port_conflict_message(config: &CollectorLaunchConfig) -> String {
+    format!(
+        "Port conflict: {} is already in use by another process. Quit that process or change API Port in Settings, then click Resume Capture.",
+        config.addr
+    )
+}
+
 fn loopback_is_listening(addr: &SocketAddr) -> bool {
     TcpStream::connect_timeout(addr, Duration::from_millis(250)).is_ok()
 }
@@ -468,6 +573,11 @@ fn config_paths_from_app(app: &AppHandle) -> Result<ConfigPaths, String> {
         .app_local_data_dir()
         .map_err(|error| format!("Unable to resolve app local data directory: {error}"))?;
     Ok(ConfigPaths::new(config_dir, app_local_data_dir))
+}
+
+fn load_desktop_config(app: &AppHandle) -> Result<DesktopConfig, String> {
+    let paths = config_paths_from_app(app)?;
+    DesktopConfigStore::new(paths).load_or_default()
 }
 
 fn load_config_view(app: &AppHandle) -> Result<DesktopConfigView, String> {
@@ -514,5 +624,53 @@ mod tests {
             ]
         );
         assert_eq!(config.api_url(), "http://127.0.0.1:4317");
+    }
+
+    #[test]
+    fn external_status_explains_port_conflict_recovery() {
+        let config = CollectorLaunchConfig::new(
+            PathBuf::from("D:/TSR/data"),
+            "127.0.0.1:5317".parse().unwrap(),
+            1000,
+        );
+        let state = CollectorState::default();
+
+        let status = state.set_external(&config);
+
+        assert_eq!(status.status, "external");
+        assert!(!status.managed);
+        let message = status.last_error.unwrap();
+        assert!(message.contains("Port conflict"));
+        assert!(message.contains("change API Port in Settings"));
+        assert!(message.contains("Resume Capture"));
+    }
+
+    #[test]
+    fn start_minimized_decision_uses_config_or_launch_flag() {
+        let paths = ConfigPaths::new(temp_path("config"), temp_path("data"));
+        let mut config = DesktopConfig::default_for_paths(&paths);
+
+        assert!(!should_start_minimized(
+            &config,
+            ["time-state-recorder-desktop".to_string()].into_iter()
+        ));
+        assert!(should_start_minimized(
+            &config,
+            [
+                "time-state-recorder-desktop".to_string(),
+                "--minimized".to_string()
+            ]
+            .into_iter()
+        ));
+
+        config.system.start_minimized = true;
+        assert!(should_start_minimized(
+            &config,
+            ["time-state-recorder-desktop".to_string()].into_iter()
+        ));
+    }
+
+    fn temp_path(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!("tsr-desktop-main-test-{name}"))
     }
 }
